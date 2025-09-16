@@ -2,6 +2,7 @@
 import { supabase } from '../../lib/supabaseClient'
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
+import { useEffect } from 'react'
 
 export default function AuthUI() {
   return (
