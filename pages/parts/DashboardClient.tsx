@@ -5,13 +5,22 @@ import Link from 'next/link'
 
 export default function DashboardClient() {
   const [email, setEmail] = useState<string | null>(null)
+  const [items, setItems] = useState<any[]>([])
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      const e = data.user?.email ?? null
-      setEmail(e)
-      if (!e) window.location.href = '/login'
-    })
+    (async () => {
+      const { data } = await supabase.auth.getUser()
+      const user = data.user
+      if (!user?.email) { window.location.href = '/login'; return }
+      setEmail(user.email)
+
+      const { data: rows } = await supabase
+        .from('tracked_card')
+        .select('id, name, game, product_url, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50)
+      setItems(rows || [])
+    })()
   }, [])
 
   if (!email) return null
@@ -24,9 +33,30 @@ export default function DashboardClient() {
           Uitloggen
         </button>
       </div>
+
       <p style={{marginTop:16}}>Ingelogd als <strong>{email}</strong>.</p>
+
       <div style={{marginTop:24}}>
         <Link href="/track">→ Kaart toevoegen</Link>
+      </div>
+
+      <div style={{marginTop:32}}>
+        <h2 style={{fontSize:18, fontWeight:600, marginBottom:8}}>Jouw kaarten</h2>
+        {items.length === 0 ? (
+          <p>Nog niets gevolgd. Ga naar <a href="/track">/track</a> om je eerste link toe te voegen.</p>
+        ) : (
+          <ul style={{display:'grid', gap:8}}>
+            {items.map((it) => (
+              <li key={it.id} style={{border:'1px solid #e5e7eb', borderRadius:8, padding:12}}>
+                <div style={{fontWeight:600}}>{it.name || 'Zonder naam'}</div>
+                <div style={{fontSize:12, color:'#6b7280'}}>Game: {it.game}</div>
+                <a href={it.product_url} target="_blank" rel="noreferrer" style={{fontSize:12}}>
+                  {it.product_url}
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   )
