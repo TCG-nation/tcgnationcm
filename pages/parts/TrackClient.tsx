@@ -2,9 +2,17 @@
 import { useState, FormEvent, useEffect } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 
-const idFromUrl = (url: string) => {
-  const m = url.match(/[?&]idProduct=(\d+)/)
-  return m ? parseInt(m[1], 10) : null
+function normalizeCardmarketUrl(raw: string) {
+  try {
+    const u = new URL(raw.trim())
+    if (!u.hostname.toLowerCase().includes('cardmarket.com')) return null
+    // strip optionele idProduct param; we tracken op de “normale” URL
+    u.searchParams.delete('idProduct')
+    const clean = u.origin + u.pathname + (u.search ? u.search : '')
+    return clean.replace(/\?$/, '')
+  } catch {
+    return null
+  }
 }
 
 export default function TrackClient() {
@@ -13,7 +21,6 @@ export default function TrackClient() {
   const [name, setName] = useState('')
 
   useEffect(() => {
-    // als je niet ingelogd bent -> terug naar login
     supabase.auth.getUser().then(({ data }) => {
       if (!data.user?.email) window.location.href = '/login'
     })
@@ -24,18 +31,25 @@ export default function TrackClient() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return alert('Niet ingelogd')
 
-    const id_product = idFromUrl(url)
-    if (!id_product) return alert('Kon geen idProduct vinden in de URL (zoek ?idProduct=...)')
+    const product_url = normalizeCardmarketUrl(url)
+    if (!product_url) return alert('Voer een geldige Cardmarket-URL in (https://www.cardmarket.com/...)')
 
-    const { error } = await supabase.from('tracked_card').insert({
+    const insert = {
       user_id: user.id,
-      id_product,
+      id_product: null,
       game,
-      name
-    } as any)
+      name: name || null,
+      product_url
+    } as any
 
-    if (error) return alert(error.message)
-    alert('Kaart gevolgd!')
+    const { error } = await supabase.from('tracked_card').insert(insert)
+    if (error) {
+      if (error.message.includes('ux_tracked_card_product_url')) {
+        return alert('Deze link volg je al 😉')
+      }
+      return alert(error.message)
+    }
+    alert('Kaart gevolgd op URL!')
     setUrl(''); setName('')
   }
 
@@ -46,13 +60,13 @@ export default function TrackClient() {
         <input
           value={url}
           onChange={e=>setUrl(e.target.value)}
-          placeholder="Cardmarket product-URL met ?idProduct=123456"
+          placeholder="Plak hier de Cardmarket-link van de kaart (normale URL is prima)"
           style={{border:'1px solid #e5e7eb', padding:8, borderRadius:8}}
         />
         <input
           value={name}
           onChange={e=>setName(e.target.value)}
-          placeholder="(Optioneel) kaartnaam"
+          placeholder="(Optioneel) kaartnaam voor overzicht"
           style={{border:'1px solid #e5e7eb', padding:8, borderRadius:8}}
         />
         <select
@@ -68,6 +82,9 @@ export default function TrackClient() {
           Toevoegen
         </button>
       </form>
+      <p style={{marginTop:12, fontSize:12, color:'#6b7280'}}>
+        Tip: elke unieke Cardmarket-URL kun je één keer volgen (dubbele links worden netjes tegengehouden).
+      </p>
     </div>
   )
 }
