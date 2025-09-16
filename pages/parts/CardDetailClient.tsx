@@ -32,7 +32,7 @@ const COUNTRIES = [
   { code: 7,  name: 'Germany' },
   { code: 12, name: 'France' },
   { code: 10, name: 'Spain' },
-  { code: 13, name: 'United Kingdom' },
+  { code: 13, name: 'United Kingdom' }
 ]
 
 const CONDITIONS = ['MT','NM','EX','GD','LP','PL','PO'] as const
@@ -44,16 +44,13 @@ export default function CardDetailClient() {
   const [filters, setFilters] = useState<TrackFilter[]>([])
   const [selectedFilterId, setSelectedFilterId] = useState<string | null>(null)
 
-  // form state voor nieuw filter
   const [sellerCountry, setSellerCountry] = useState<number>(23)
   const [condition, setCondition] = useState<string>('NM')
   const [languageId, setLanguageId] = useState<string>('') // optioneel
   const [isFoil, setIsFoil] = useState<boolean>(false)
 
-  // range state
   const [range, setRange] = useState<'1m' | '3m' | '1y' | 'all'>('1m')
 
-  // snapshots + form om er één toe te voegen (tijdelijk handmatig)
   const [data, setData] = useState<Snapshot[]>([])
   const [newMin, setNewMin] = useState<string>('')
   const [newMedian, setNewMedian] = useState<string>('') 
@@ -62,11 +59,9 @@ export default function CardDetailClient() {
   useEffect(() => {
     if (!id) return
     ;(async () => {
-      // check login
       const { data: auth } = await supabase.auth.getUser()
       if (!auth.user?.email) { window.location.href = '/login'; return }
 
-      // kaart ophalen
       const { data: rows } = await supabase
         .from('tracked_card')
         .select('id, name, game, product_url')
@@ -74,7 +69,6 @@ export default function CardDetailClient() {
         .limit(1)
       setCard(rows?.[0] || null)
 
-      // filters ophalen
       const { data: frows } = await supabase
         .from('track_filter')
         .select('id, seller_country, min_condition, language_id, is_foil')
@@ -86,17 +80,15 @@ export default function CardDetailClient() {
     })()
   }, [id])
 
-  // snapshots laden bij filter/range
   useEffect(() => {
     if (!id || !selectedFilterId) { setData([]); return }
     ;(async () => {
-      // filter details ophalen
       const f = filters.find(x => x.id === selectedFilterId)
       if (!f) return
-      // range -> startdatum
+
       const now = new Date()
       let since: Date | null = null
-      if (range === '1m') since = new Date(now); since && since.setMonth(since.getMonth() - 1)
+      if (range === '1m') { since = new Date(now); since.setMonth(since.getMonth() - 1) }
       if (range === '3m') { since = new Date(now); since.setMonth(since.getMonth() - 3) }
       if (range === '1y') { since = new Date(now); since.setFullYear(since.getFullYear() - 1) }
 
@@ -111,10 +103,7 @@ export default function CardDetailClient() {
       if (f.language_id != null) query = query.eq('language_id', f.language_id)
       else query = query.is('language_id', null)
 
-      if (since) {
-        // Supabase filter: captured_at >= since
-        query = query.gte('captured_at', since.toISOString())
-      }
+      if (since) query = query.gte('captured_at', since.toISOString())
 
       const { data: rows } = await query.order('captured_at', { ascending: true })
       setData((rows || []) as Snapshot[])
@@ -141,11 +130,8 @@ export default function CardDetailClient() {
       is_foil: isFoil
     } as any
     const { error } = await supabase.from('track_filter').insert(payload)
-    if (error) {
-      alert(error.message)
-      return
-    }
-    // herladen
+    if (error) { alert(error.message); return }
+
     const { data: frows } = await supabase
       .from('track_filter')
       .select('id, seller_country, min_condition, language_id, is_foil')
@@ -175,12 +161,14 @@ export default function CardDetailClient() {
     const { error } = await supabase.from('market_snapshot').insert(payload)
     if (error) { alert(error.message); return }
     setNewMin(''); setNewMedian(''); setNewCount('')
-    // refresh data
+
+    // refresh
     const now = new Date()
     let since: Date | null = null
     if (range === '1m') { since = new Date(now); since.setMonth(since.getMonth() - 1) }
     if (range === '3m') { since = new Date(now); since.setMonth(since.getMonth() - 3) }
     if (range === '1y') { since = new Date(now); since.setFullYear(since.getFullYear() - 1) }
+
     let query = supabase
       .from('market_snapshot')
       .select('captured_at, price_min, price_median, listings_count')
@@ -296,7 +284,7 @@ export default function CardDetailClient() {
         )}
       </div>
 
-      {/* Handmatige snapshot toevoegen (tijdelijk) */}
+      {/* Handmatig snapshot toevoegen */}
       {selectedFilterId && (
         <form onSubmit={addSnapshot} style={{marginTop:16, display:'grid', gap:8, gridTemplateColumns:'1fr 1fr 1fr auto', alignItems:'end'}}>
           <div>
