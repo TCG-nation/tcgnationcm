@@ -3,9 +3,17 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import Link from 'next/link'
 
+type Tracked = {
+  id: string
+  name: string | null
+  game: string
+  product_url: string | null
+  created_at: string
+}
+
 export default function DashboardClient() {
   const [email, setEmail] = useState<string | null>(null)
-  const [items, setItems] = useState<any[]>([])
+  const [items, setItems] = useState<Tracked[]>([])
 
   useEffect(() => {
     (async () => {
@@ -14,12 +22,12 @@ export default function DashboardClient() {
       if (!user?.email) { window.location.href = '/login'; return }
       setEmail(user.email)
 
-      const { data: rows } = await supabase
+      const { data: rows, error } = await supabase
         .from('tracked_card')
         .select('id, name, game, product_url, created_at')
         .order('created_at', { ascending: false })
-        .limit(50)
-      setItems(rows || [])
+        .limit(100)
+      if (!error) setItems((rows || []) as Tracked[])
     })()
   }, [])
 
@@ -50,9 +58,14 @@ export default function DashboardClient() {
               <li key={it.id} style={{border:'1px solid #e5e7eb', borderRadius:8, padding:12}}>
                 <div style={{fontWeight:600}}>{it.name || 'Zonder naam'}</div>
                 <div style={{fontSize:12, color:'#6b7280'}}>Game: {it.game}</div>
-                <a href={it.product_url} target="_blank" rel="noreferrer" style={{fontSize:12}}>
-                  {it.product_url}
-                </a>
+                {it.product_url && (
+                  <a href={it.product_url} target="_blank" rel="noreferrer" style={{fontSize:12, display:'inline-block', marginTop:4}}>
+                    {it.product_url}
+                  </a>
+                )}
+                <div style={{marginTop:8}}>
+                  <Link href={`/card/${it.id}`}>Open kaart → filters & grafiek</Link>
+                </div>
               </li>
             ))}
           </ul>
